@@ -396,3 +396,20 @@ json_walk() {
         return 1
     fi
 }
+
+jsonwalk_main() {
+    local json=$1
+    local visitor=${2-}
+
+    if [[ -z $json ]]; then
+        echo "usage: jsonwalk '<json>' [visitor]" >&2
+        exit 1
+    fi
+
+    json_walk "$json" "$visitor"
+}
+
+# Run main only if script executed, not sourced
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    jsonwalk_main "$@"
+fi
