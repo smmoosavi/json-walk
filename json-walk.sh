@@ -50,7 +50,13 @@ jsonwalk::_emit() {
         shift
 
         for arg in "$@"; do
-            printf '\t%q' "$arg"
+            # Check if escaping is needed for: empty string, tabs, newlines, quotes, or backslashes
+            if [[ -z $arg ]] || [[ $arg == *$'\t'* ]] || [[ $arg == *$'\n'* ]] || [[ $arg == *"'"* ]] || [[ $arg == *'"'* ]] || [[ $arg == *'\\'* ]]; then
+                printf '\t%q' "$arg"
+            else
+                # For simple strings (including those with emoji), output as-is
+                printf '\t%s' "$arg"
+            fi
         done
 
         printf '\n'
