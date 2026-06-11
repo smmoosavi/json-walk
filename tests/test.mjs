@@ -1,5 +1,5 @@
 import { describe, test } from "node:test";
-import { execSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { strict as assert } from "node:assert";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -36,6 +36,14 @@ function runPrintIds(jsonInput) {
     .split("\n")
     .filter((line) => line.startsWith("ID:"))
     .map((line) => line.replace(/^ID: ?/, ""));
+}
+
+function decodeJsonString(content) {
+  const cmd = spawnSync("bash", ["-c", 'source "$1"; jsonwalk_decode_string "$2"', "bash", jsonWalkScript, content], {
+    encoding: "utf-8",
+  });
+  assert.equal(cmd.status, 0, cmd.stderr);
+  return cmd.stdout;
 }
 
 describe("json-walk basic values", () => {
@@ -76,21 +84,30 @@ describe("json-walk basic values", () => {
 
   test("empty string", () => {
     const events = runJsonWalk('""');
-    // Empty string is shell-escaped to ''
-    assert.deepEqual(events, [{ type: "string", value: "''" }]);
+    assert.deepEqual(events, [{ type: "string", value: "" }]);
   });
 
   test("string with emojis", () => {
     const events = runJsonWalk('"Hello, 👋🌍!"');
     assert.deepEqual(events, [{ type: "string", value: "Hello, 👋🌍!" }]);
   });
-  test("string with unicode escape", () => {
+  test("string with unicode escape remains raw", () => {
     const events = runJsonWalk('"\\uD83D\\uDE00"');
-    assert.deepEqual(events, [{ type: "string", value: "😀" }]);
+    assert.deepEqual(events, [{ type: "string", value: "\\uD83D\\uDE00" }]);
   });
-  test("string with special characters", () => {
+
+  test("string with escapes remains raw", () => {
     const events = runJsonWalk('"Line1\\nLine2\\tTabbed"');
-    assert.deepEqual(events, [{ type: "string", value: "$'Line1\\nLine2\\tTabbed'" }]);
+    assert.deepEqual(events, [{ type: "string", value: "Line1\\nLine2\\tTabbed" }]);
+  });
+
+  test("raw unicode escape can be decoded explicitly", () => {
+    assert.equal(decodeJsonString("\\u0041"), "A");
+    assert.equal(decodeJsonString("\\uD83D\\uDE00"), "😀");
+  });
+
+  test("raw special escapes can be decoded explicitly", () => {
+    assert.equal(decodeJsonString("Line1\\nLine2\\tTabbed"), "Line1\nLine2\tTabbed");
   });
 });
 

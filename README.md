@@ -12,7 +12,7 @@ The parser follows the JSON grammar and supports:
 
 - objects
 - arrays
-- strings (with escape handling and unicode)
+- strings, preserving their raw JSON content inside quotes
 - numbers
 - booleans
 - null
@@ -52,11 +52,7 @@ end_array
 end_object
 ```
 
-Fields are separated by **tabs**, and values are shell-escaped using:
-
-```
-printf '%q'
-```
+Fields are separated by **tabs**. String values are emitted as the exact content inside their JSON double quotes, so JSON escapes are preserved.
 
 ---
 
@@ -126,11 +122,13 @@ key <key>
 ### Values
 
 ```
-string <value>
+string <raw-content-inside-json-quotes>
 number <value>
 boolean <true|false>
 null
 ```
+
+For example, `"\u0041"` emits `string	\u0041`, while `"AA"` emits `string	AA`.
 
 ---
 
@@ -162,10 +160,11 @@ json_walk '[{"id": 4}, {"id": 5}]' print_ids
 # Parser Behavior
 
 - Fully validates JSON structure
-- Handles escaped characters:
+- Validates escaped characters:
   - `\" \\ \/ \b \f \n \r \t`
-- Supports Unicode escapes (`\uXXXX`)
-- Supports UTF‑16 surrogate pairs
+- Validates Unicode escapes (`\uXXXX`)
+- Validates UTF‑16 surrogate pairs
+- Preserves raw string content instead of decoding escapes during walking
 - Rejects:
   - unterminated strings
   - invalid escape sequences
@@ -210,6 +209,17 @@ Behavior:
 
 - If `VISITOR` is provided, events are sent to it
 - Otherwise events are printed to stdout
+
+### `jsonwalk_decode_string STRING_CONTENT`
+
+Decodes raw JSON string content, without surrounding double quotes.
+
+```bash
+jsonwalk_decode_string '\u0041'
+# A
+```
+
+The decoded value is printed to stdout and also assigned to `REPLY`.
 
 ---
 

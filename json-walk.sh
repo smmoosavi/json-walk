@@ -24,7 +24,7 @@
 #   my_visitor key label
 #   ...
 #
-# stdout mode uses shell-escaped fields for keys and values via printf '%q'.
+# stdout mode prints raw tab-separated fields.
 #
 # events are:
 #
@@ -50,13 +50,7 @@ jsonwalk::_emit() {
         shift
 
         for arg in "$@"; do
-            # Check if escaping is needed for: empty string, tabs, newlines, quotes, or backslashes
-            if [[ -z $arg ]] || [[ $arg == *$'\t'* ]] || [[ $arg == *$'\n'* ]] || [[ $arg == *"'"* ]] || [[ $arg == *'"'* ]] || [[ $arg == *'\\'* ]]; then
-                printf '\t%q' "$arg"
-            else
-                # For simple strings (including those with emoji), output as-is
-                printf '\t%s' "$arg"
-            fi
+            printf '\t%s' "$arg"
         done
 
         printf '\n'
@@ -142,6 +136,69 @@ jsonwalk::_parse_unicode_escape() {
 }
 
 jsonwalk::_parse_string() {
+    local c char_code content_start
+
+    jsonwalk::_peek
+
+    if [[ $REPLY != '"' ]]; then
+        echo "Expected string at $jsonwalk_pos" >&2
+        return 1
+    fi
+
+    jsonwalk::_next_char   # skip opening "
+    content_start=$jsonwalk_pos
+
+    while :; do
+        jsonwalk::_peek
+        c=$REPLY
+
+        case "$c" in
+            '"')
+                jsonwalk_last_string=${jsonwalk_json:content_start:jsonwalk_pos-content_start}
+                jsonwalk::_next_char
+                return
+                ;;
+
+            \\)
+                jsonwalk::_next_char
+                jsonwalk::_peek
+                c=$REPLY
+
+                case "$c" in
+                    '"'|\\|'/'|b|f|n|r|t)
+                        jsonwalk::_next_char
+                        ;;
+                    u)
+                        jsonwalk::_parse_unicode_escape || return $?
+                        continue
+                        ;;
+                    *)
+                        echo "Invalid string escape at $jsonwalk_pos" >&2
+                        return 1
+                        ;;
+                esac
+                ;;
+
+            '')
+                echo "Unterminated string at $jsonwalk_pos" >&2
+                return 1
+                ;;
+
+            *)
+                LC_CTYPE=C printf -v char_code '%d' "'$c"
+
+                if (( char_code < 0x20 )); then
+                    echo "Unescaped control character at $jsonwalk_pos" >&2
+                    return 1
+                fi
+
+                jsonwalk::_next_char
+                ;;
+        esac
+    done
+}
+
+jsonwalk::_parse_string_decoded() {
     local out="" c char_code
 
     jsonwalk::_peek
@@ -401,6 +458,26 @@ json_walk() {
         echo "JSON parse error near position $jsonwalk_pos" >&2
         return 1
     fi
+}
+
+jsonwalk_decode_string() {
+    local jsonwalk_json jsonwalk_pos jsonwalk_visitor jsonwalk_last_string
+    local jsonwalk_last_char jsonwalk_last_hex
+
+    jsonwalk_json="\"$1\""
+    jsonwalk_pos=0
+    jsonwalk_visitor=
+
+    jsonwalk::_parse_string_decoded || return $?
+    jsonwalk::_peek
+
+    if [[ -n $REPLY ]]; then
+        echo "Invalid string content near position $jsonwalk_pos" >&2
+        return 1
+    fi
+
+    REPLY=$jsonwalk_last_string
+    printf '%s' "$REPLY"
 }
 
 jsonwalk_main() {
