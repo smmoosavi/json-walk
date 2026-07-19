@@ -39,7 +39,7 @@ function runPrintIds(jsonInput) {
 }
 
 function decodeJsonString(content) {
-  const cmd = spawnSync("bash", ["-c", 'source "$1"; jsonwalk_decode_string "$2"', "bash", jsonWalkScript, content], {
+  const cmd = spawnSync("bash", ["-c", 'source "$1"; json_walk_decode_string "$2"', "bash", jsonWalkScript, content], {
     encoding: "utf-8",
   });
   assert.equal(cmd.status, 0, cmd.stderr);

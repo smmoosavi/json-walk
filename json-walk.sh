@@ -460,7 +460,7 @@ json_walk() {
     fi
 }
 
-jsonwalk_decode_string() {
+json_walk_decode_string() {
     local jsonwalk_json jsonwalk_pos jsonwalk_visitor jsonwalk_last_string
     local jsonwalk_last_char jsonwalk_last_hex
 

@@ -210,12 +210,12 @@ Behavior:
 - If `VISITOR` is provided, events are sent to it
 - Otherwise events are printed to stdout
 
-### `jsonwalk_decode_string STRING_CONTENT`
+### `json_walk_decode_string STRING_CONTENT`
 
 Decodes raw JSON string content, without surrounding double quotes.
 
 ```bash
-jsonwalk_decode_string '\u0041'
+json_walk_decode_string '\u0041'
 # A
 ```
 
